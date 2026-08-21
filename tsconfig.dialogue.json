@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "incremental": false,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "app/lib/dialogue/**/*.ts",
+    "app/api/dialogue/route.ts",
+    "tests/dialogue-runtime.test.ts"
+  ],
+  "exclude": ["node_modules", "db", "worker"]
+}

@@ -1,100 +1,49 @@
-# vinext-starter
+# 未竟之桌 The Unfinished Table
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+一个跨时代的 AI 思想对话实验。用户可以邀请历史人物与当代公众人物入席，将一个尚未想明白的问题放到桌上，通过有分歧、有来源、也允许“不知道”的讨论继续思考。
 
-## Prerequisites
+This is an AI-mediated, cross-era dialogue experiment. It is designed to provoke curiosity rather than impersonate real people or replace scholarship.
 
-- Node.js `>=22.13.0`
+## 产品特点
 
-## Quick Start
+- 支持 1–6 位人物入席，不使用固定轮流发言。
+- 人物回应会接住上一句，形成赞同、质疑、补充或转向。
+- 用户可以随时补充、反驳、追问或带入新观点。
+- 中英界面与对话翻译。
+- 公开来源、推演边界与不确定性说明。
+- 本地保存对话记录和“未竟地图”。
+
+## 本地运行
+
+需要 Node.js 22.13 或更高版本。
 
 ```bash
-npm install
-npm run dev
-npm run build
+pnpm install
+cp .env.example .env.local
+pnpm dev
 ```
 
-This starter does not use `wrangler.jsonc`.
+然后打开 `http://localhost:3000`。
 
-## Included Shape
+## 模型配置
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+将密钥写入本地 `.env.local` 或 Vercel Environment Variables。不要把真实密钥提交到 Git。
 
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```env
+AI_PROVIDER=kimi
+MOONSHOT_API_KEY=
+KIMI_MODEL=kimi-k2.6
+KIMI_BASE_URL=https://api.moonshot.cn/v1
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+也可以在 `.env.example` 中查看 DeepSeek 与 OpenAI 的空值配置模板。
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+## 验证
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+```bash
+pnpm test
+```
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+## 伦理声明
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+页面中的人物回应是 AI 根据公开资料生成的观点转译，不是真实人物的原话、授权代理或学术替代品。
