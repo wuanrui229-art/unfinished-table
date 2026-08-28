@@ -1005,10 +1005,10 @@ export default function Home() {
       const turn = localizedTurn(message, requestLocale);
       return turn ? [turn] : [];
     });
-    // A question should feel like the start of a discussion, not a single-agent
-    // answer. Two substantive turns are enough to reveal a relationship while
-    // keeping the user free to pause, disagree, or redirect immediately after.
-    const turnsToGenerate = options?.turns ?? Math.min(2, Math.max(1, selected.length));
+    // Generate one speaker per interaction. This keeps the table responsive,
+    // preserves a successful first answer, and lets the visitor decide when
+    // to invite the next reply instead of chaining two long model calls.
+    const turnsToGenerate = options?.turns ?? 1;
     let completedThisRun = 0;
     const controller = new AbortController();
     roundAbort.current = controller;

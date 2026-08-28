@@ -115,6 +115,23 @@ function normalizeOrchestrationHints(value: unknown, request: DialogueRequest): 
   };
 }
 
+function normalizeEvidenceIds(value: unknown, evidence: EvidenceRecord[]): unknown {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
+  const turn = value as Record<string, unknown>;
+  if (!Array.isArray(turn.evidence_uses)) return value;
+  const allowed = new Set(evidence.map((record) => record.id));
+  const normalizedUses = turn.evidence_uses.map((item) => {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) return item;
+    const use = item as Record<string, unknown>;
+    if (typeof use.evidence_id !== "string") return item;
+    const match = use.evidence_id.trim().match(/^\[?ev[-_ ]?(\d{3})\]?$/i);
+    if (!match) return item;
+    const canonicalId = `ev-${match[1]}`;
+    return allowed.has(canonicalId) ? { ...use, evidence_id: canonicalId } : item;
+  });
+  return { ...turn, evidence_uses: normalizedUses };
+}
+
 function splitReadableBubble(text: string, language: DialogueRequest["language"]): [string, string] | null {
   const characters = Array.from(text.trim());
   if (characters.length < 12) return null;
@@ -153,6 +170,39 @@ function looksLikeIncompleteEnglish(text: string): boolean {
   return false;
 }
 
+function finishChineseBubble(text: string): string {
+  const trimmed = text.trim();
+  if (/[。！？.!?…]["'”’）)]?$/.test(trimmed)) return trimmed;
+  return `${trimmed.replace(/[，；：、]+$/, "")}。`;
+}
+
+function splitDenseChineseBubble(text: string): string[] {
+  const trimmed = text.trim();
+  const length = characterLength(trimmed);
+  const clauseBreaks = trimmed.match(/[，；：、]/g)?.length ?? 0;
+  // Paragraphs beyond the normal bubble limit are handled by the existing
+  // balanced splitter below; this normalizer only fixes dense, otherwise
+  // valid-sized Chinese bubbles.
+  if (length > 130 || length <= 55 || clauseBreaks < 5) return [trimmed];
+
+  const clauses = trimmed.match(/[^，；：、。！？.!?…]+[，；：、。！？.!?…]?/g)?.map((part) => part.trim()).filter(Boolean) ?? [];
+  if (clauses.length < 2) return [trimmed];
+  const bubbles: string[] = [];
+  let current = "";
+  for (const clause of clauses) {
+    const candidate = `${current}${clause}`;
+    const candidateBreaks = candidate.match(/[，；：、]/g)?.length ?? 0;
+    if (current && (characterLength(candidate) > 70 || candidateBreaks >= 4)) {
+      bubbles.push(finishChineseBubble(current));
+      current = clause;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) bubbles.push(finishChineseBubble(current));
+  return bubbles.length > 1 ? bubbles : [trimmed];
+}
+
 function splitEnglishParagraphIntoBubbles(text: string): string[] | null {
   const trimmed = text.trim();
   const sentences = trimmed.match(/[^.!?…]+[.!?…]+(?:["'”’)]*)/g)?.map((sentence) => sentence.trim()) ?? [];
@@ -185,13 +235,19 @@ function normalizeSpeechBubbles(value: unknown, language: DialogueRequest["langu
   const paragraphBubbles = language === "en" && rawSegments.length === 1
     ? splitEnglishParagraphIntoBubbles(rawSegments[0])
     : null;
-  const sourceSegments = paragraphBubbles ?? rawSegments;
+  // Normalize a dense opening directly. Dense later segments are already
+  // handled by the balanced tail splitter below, which preserves the compact
+  // 2–6 bubble layout instead of fragmenting every clause independently.
+  const splitChineseSegments = language === "zh"
+    ? rawSegments.flatMap((segment, index) => index === 0 ? splitDenseChineseBubble(segment) : [segment])
+    : rawSegments;
+  const sourceSegments = paragraphBubbles ?? (splitChineseSegments.length <= 6 ? splitChineseSegments : rawSegments);
   const segments = language === "en"
     ? sourceSegments.map((segment) => {
         const trimmed = segment.trim();
         return /[.!?…]["'”’)]?$/.test(trimmed) || looksLikeIncompleteEnglish(trimmed) ? trimmed : `${trimmed}.`;
       })
-    : rawSegments;
+    : sourceSegments;
   const maximumSegmentLength = language === "en" ? 300 : 130;
   const maximumTotalLength = language === "en" ? 1300 : 520;
   if (segments.length < 2 || characterLength(segments.join("")) > maximumTotalLength) return { ...turn, speech_segments: segments };
@@ -278,9 +334,12 @@ export async function generateDialogueTurn(
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const repairErrors = validationErrors.map((error) => explainRepairError(error, request.language));
+    const allowedEvidence = bundle.evidence
+      .map((record) => `${record.id} (${record.status})`)
+      .join(", ");
     const repairInstruction = attempt === 1
       ? ""
-      : `\n\n上一次输出没有通过产品的事实与对话检查。只修正这些问题，不改变人物：\n- ${repairErrors.join("\n- ")}\n重新核对 system 中的现代议题字段规则后，输出完整 JSON 对象。\n上一次输出：\n${previousOutput.slice(0, 5000)}`;
+      : `\n\n上一次输出没有通过产品的事实与对话检查。只修正这些问题，不改变人物：\n- ${repairErrors.join("\n- ")}\n本轮 evidence_id 只能逐字复制以下列表中的值，不能使用人物资料包里的其他 id：${allowedEvidence}\n重新核对 system 中的现代议题字段规则后，输出完整 JSON 对象。\n上一次输出：\n${previousOutput.slice(0, 5000)}`;
     previousOutput = await requestStructuredTurn(
       {
         provider,
@@ -307,6 +366,7 @@ export async function generateDialogueTurn(
       continue;
     }
 
+    parsed = normalizeEvidenceIds(parsed, bundle.evidence);
     parsed = normalizeSpeechBubbles(parsed, request.language);
     parsed = normalizeOrchestrationHints(parsed, request);
     const validation = validateDialogueTurn(parsed, request, bundle);

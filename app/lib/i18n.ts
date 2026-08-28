@@ -70,7 +70,7 @@ export const UI_COPY = {
     thinkingLong: "这一次想得有点久", thinkingLongDetail: "桌面会保留；你也可以先停在这里", thinkingPlace: "把话放到桌上", thinkingPlaceDetail: "这段回应已经通过资料与格式检查",
     translating: "正在翻译已有对话", translatingZh: "正在把已有对话翻译成中文", translatingEn: "正在把已有对话翻译成英文", translatingDetail: "界面语言已经切换；人物的意思、分歧和语气会尽量保留", translationFailed: "已有对话暂时未能完成翻译，但界面语言已经切换。", retryTranslation: "重试对话翻译 ↗",
     prepareFailed: "桌边暂时没能决定下一位接话者，已经发生的对话都会保留。", generationFailed: "下一位没有生成成功，桌面和已经发生的对话都会保留。",
-    pauseNotice: "这一句话先停在这里。你想到什么，随时可以接着说。", aborted: "这一轮已暂停。已经发生的对话和还没说话的座位都保留了。", offline: "没有连接到对话服务。问题已留在桌上，修复连接后可以从这里继续。",
+    pauseNotice: "这一句话先停在这里。你想到什么，随时可以接着说。", aborted: "这一轮已暂停。已经发生的对话和还没说话的座位都保留了。", offline: "本轮对话服务没有完成。已有内容都已保留，可以从这里重试。",
     openTension: "这张桌子还没有替你决定答案；下一步要由你继续追问。",
   },
   en: {
@@ -110,7 +110,7 @@ export const UI_COPY = {
     thinkingLong: "This is taking a little longer", thinkingLongDetail: "The table will stay here; you can also pause", thinkingPlace: "is putting the thought on the table", thinkingPlaceDetail: "This response passed its evidence and format checks",
     translating: "Translating the earlier dialogue", translatingZh: "Translating the earlier dialogue into Chinese", translatingEn: "Translating the earlier dialogue into English", translatingDetail: "The interface has switched; the meaning, disagreement, and tone will be preserved as closely as possible", translationFailed: "The earlier dialogue could not be translated yet, but the interface language has switched.", retryTranslation: "Retry dialogue translation ↗",
     prepareFailed: "The table could not choose the next speaker. Everything already said is still here.", generationFailed: "The next reply did not complete. The table and earlier conversation are still here.",
-    pauseNotice: "This sentence can rest here. Add your thought whenever you are ready.", aborted: "This round was paused. Earlier replies and the seats still waiting to speak are preserved.", offline: "The dialogue service is unavailable. Your question is still on the table, ready to continue when the connection returns.",
+    pauseNotice: "This sentence can rest here. Add your thought whenever you are ready.", aborted: "This round was paused. Earlier replies and the seats still waiting to speak are preserved.", offline: "This turn did not complete. Everything already on the table is preserved, so you can retry here.",
     openTension: "The table has not decided the answer for you. The next move is yours.",
   },
 } as const;

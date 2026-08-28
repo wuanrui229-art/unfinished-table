@@ -600,6 +600,50 @@ test("generation can split one overlong model paragraph into readable nearby bub
   assert.ok(result.turn.speech_segments.every((segment) => Array.from(segment).length <= 88));
 });
 
+test("generation deterministically splits a dense Chinese bubble before retrying the model", async () => {
+  const { turn } = makeValidModernTurn("turn-dense-normalized");
+  let calls = 0;
+  const denseBubble = "技术可以增加选择，但是选择由谁设计、默认值由谁设置、退出要付出什么代价、错误由谁承担、收益最后归谁，这些问题如果混在一起，自由就只剩一个好听的标签。";
+  const fetcher: typeof fetch = async () => {
+    calls += 1;
+    return Response.json({ output_text: JSON.stringify({ ...turn, speech_segments: [denseBubble, ...turn.speech_segments.slice(1)] }) });
+  };
+
+  const result = await generateDialogueTurn(modernRequest, "turn-dense-normalized", {
+    apiKey: "test-key",
+    model: "test-model",
+    fetcher,
+  });
+  assert.equal(result.attempts, 1);
+  assert.equal(calls, 1);
+  assert.ok(result.turn.speech_segments.length > turn.speech_segments.length);
+  assert.ok(result.turn.speech_segments.every((segment) => {
+    const clauseBreaks = segment.match(/[，；：、]/g)?.length ?? 0;
+    return Array.from(segment).length <= 55 || clauseBreaks < 5;
+  }));
+});
+
+test("generation canonicalizes harmless evidence id formatting", async () => {
+  const { turn } = makeValidModernTurn("turn-evidence-format");
+  const fetcher: typeof fetch = async () => Response.json({
+    output_text: JSON.stringify({
+      ...turn,
+      evidence_uses: turn.evidence_uses.map((use) => ({
+        ...use,
+        evidence_id: use.evidence_id.toUpperCase().replace("-", "_"),
+      })),
+    }),
+  });
+
+  const result = await generateDialogueTurn(modernRequest, "turn-evidence-format", {
+    apiKey: "test-key",
+    model: "test-model",
+    fetcher,
+  });
+  assert.equal(result.attempts, 1);
+  assert.deepEqual(result.turn.evidence_uses.map((use) => use.evidence_id), turn.evidence_uses.map((use) => use.evidence_id));
+});
+
 test("English generation turns one complete paragraph into visual speech bubbles", async () => {
   const request: DialogueRequest = { ...modernRequest, question: "Does technology make us freer?", language: "en" };
   const selection = selectNextSpeaker(request);
